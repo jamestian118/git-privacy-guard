@@ -65,3 +65,22 @@
 ### Next Steps
 1. 若后续新增脚本/命令，保持双语 usage 文档同步。
 2. 进入业务开发前先读取 `AGENTS.md` 并遵守 `scripts/verify` 闭环。
+
+## 2026-02-27 Gate 3 支持 lane（Phase 3 验证证据追加）
+
+### Scope
+- 仅执行支持任务：strict + verify + secrets-check。
+- 未修改业务代码（`git_privacy_guard.py` / `README.md` / `pyproject.toml` 等均未改动）。
+
+### Verification Commands
+- `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+- `./scripts/verify`
+- `./scripts/secrets-check`
+
+### Key Outputs
+- strict (2026-02-27 20:35 CST): `strict_result=pass`
+- verify: `[verify] OK`
+- secrets-check: `3 commits scanned` + `no leaks found` + `[secrets-check] OK`
+
+### Result
+- Gate 3 支持 lane 本轮验证结论：PASS（3/3 命令 exit 0）。
