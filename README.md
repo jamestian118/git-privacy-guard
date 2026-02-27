@@ -42,7 +42,8 @@ brew install gitleaks
 可选：把工具安装为 CLI（需要仓库里新增的 `pyproject.toml`）：
 
 ```bash
-python3 -m pip install -e "$HOME/Documents/Code/git-privacy-guard"
+GPG_ROOT="${GPG_ROOT:-$HOME/Documents/Code/git-privacy-guard}"
+python3 -m pip install -e "$GPG_ROOT"
 ```
 
 ### 使用方法（初始化某个仓库）
@@ -68,7 +69,8 @@ git-privacy-guard init --profile private --ci
 如果你不想安装 CLI，也可以直接调用脚本：
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile public --ci
+GPG_ROOT="${GPG_ROOT:-$HOME/Documents/Code/git-privacy-guard}"
+python3 "$GPG_ROOT/git_privacy_guard.py" init --profile public --ci
 ```
 
 初始化会做这些事：
@@ -267,7 +269,8 @@ brew install gitleaks
 Optional: install this repository as a CLI (enabled by `pyproject.toml`):
 
 ```bash
-python3 -m pip install -e "$HOME/Documents/Code/git-privacy-guard"
+GPG_ROOT="${GPG_ROOT:-$HOME/Documents/Code/git-privacy-guard}"
+python3 -m pip install -e "$GPG_ROOT"
 ```
 
 ### Initialize A Repo
@@ -287,7 +290,8 @@ git-privacy-guard init --profile private --ci
 If you prefer not to install the CLI, you can invoke the script directly:
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile public --ci
+GPG_ROOT="${GPG_ROOT:-$HOME/Documents/Code/git-privacy-guard}"
+python3 "$GPG_ROOT/git_privacy_guard.py" init --profile public --ci
 ```
 
 This will:

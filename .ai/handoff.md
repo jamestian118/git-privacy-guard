@@ -175,3 +175,27 @@
 
 ### Result
 - Gate 3 支持 lane 本轮验证结论：PASS（3/3 命令 exit 0）。
+
+## 2026-02-27 Phase 7 GPG lane（7.3 + 7.10）
+
+### Scope
+- 7.3 新增 CI workflow（ruff + verify/pytest）。
+- 7.10 README 示例路径参数化（`GPG_ROOT` 环境变量）。
+
+### Changes
+- added: `.github/workflows/ci.yml`
+- modified: `README.md`
+
+### Verification Commands
+- `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+- `./scripts/verify`
+- `./scripts/secrets-check`
+
+### Key Outputs
+- strict: `strict_result=pass`
+- verify: `23 passed` + `Total coverage: 77.17%` + `[verify] OK`
+- secrets-check: `no leaks found` + `[secrets-check] OK`
+
+### Notes
+- `.DS_Store/.coverage` 为本地未跟踪噪音文件，未纳入提交。
+- 本 lane 由主线程在 agent thread limit 约束下补齐执行。
