@@ -1,5 +1,53 @@
 # .ai/handoff.md
 
+## 2026-02-27 Phase 5.18-5.19 GPG lane（custom_patterns + config 友好报错）
+
+### Goal / DoD
+- Goal: 完成 Phase 5 指定项：
+  - `FileNotFoundError` / `JSONDecodeError` 友好提示
+  - 支持 `.privacy_guard.json` 的 `custom_patterns`（regex 自定义规则）
+- DoD:
+  - strict policy stack pass
+  - `./scripts/verify` pass
+  - `./scripts/secrets-check` pass
+
+### Repo State
+- Project: `/Users/Zhuanz/Documents/Code/git-privacy-guard`
+- Branch: `ai/20260227-phase0-upgrade`
+
+### Changes
+- Modified: `privacy_guard_scanner.py`
+  - `load_config()` 对缺失配置文件与 JSON 解析失败给出可读错误信息。
+  - 新增 `Config.custom_patterns` 字段并在读取阶段校验 regex 合法性。
+  - `check_pii_on_lines()` 支持 `custom_patterns` 命中（输出 `[PII] custom pattern detected`）。
+  - 将 `load_config()/read_denylist()` 放入 `main()` 的 `try`，保证统一友好报错输出。
+- Modified: `tests/test_privacy_guard_scanner.py`
+  - 新增 4 个用例：invalid custom regex、custom pattern 命中、missing config 友好报错、invalid JSON 友好报错。
+- Modified: `git_privacy_guard.py`
+  - 初始化模板 `.privacy_guard.json` 新增 `custom_patterns: []` 字段。
+- Modified: `README.md`
+  - 中文 + English 同步更新 `custom_patterns` 配置说明与 config 错误排查说明。
+
+### Verification Commands
+- `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+- `./scripts/verify`
+- `./scripts/secrets-check`
+
+### Key Outputs
+- strict: `strict_result=pass`
+- verify:
+  - `23 passed`
+  - `Required test coverage of 60% reached. Total coverage: 77.17%`
+  - `[verify] OK`
+- secrets-check:
+  - `5 commits scanned`
+  - `no leaks found`
+  - `[secrets-check] OK`
+
+### Next Steps
+1. 可选：在临时仓库 smoke 一次 `git-privacy-guard init` + 自定义 `custom_patterns`，确认 pre-commit/pre-push 的终端提示符合预期。
+2. 可选：补充一条 doc 示例，展示如何为企业内部 ID（如 `EMP-\d+`）编写 pattern 并避免误报。
+
 ## 2026-02-27 Phase 4.4-4.6 GPG lane（tests + scanner 抽离）
 
 ### Goal / DoD

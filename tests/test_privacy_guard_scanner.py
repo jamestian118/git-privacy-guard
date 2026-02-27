@@ -22,6 +22,7 @@ def make_config(**overrides: object) -> scanner.Config:
         "binary_policy": "block",
         "blocked_binary_exts": [],
         "max_diff_bytes": 2_000_000,
+        "custom_patterns": [],
     }
     base.update(overrides)
     return scanner.Config(**base)
@@ -159,6 +160,52 @@ def test_load_config_validates_max_diff_bytes(tmp_path: Path) -> None:
     )
     with pytest.raises(RuntimeError, match="max_diff_bytes"):
         scanner.load_config(tmp_path)
+
+
+def test_load_config_custom_patterns_invalid_regex(tmp_path: Path) -> None:
+    write_config(
+        tmp_path,
+        {
+            "profile": "public",
+            "pii_policy": "block",
+            "binary_policy": "block",
+            "custom_patterns": ["("],
+        },
+    )
+    with pytest.raises(RuntimeError, match=r"custom_patterns\[0\]"):
+        scanner.load_config(tmp_path)
+
+
+def test_check_pii_on_lines_detects_custom_pattern_hits() -> None:
+    cfg = make_config()
+    object.__setattr__(cfg, "custom_patterns", [r"\bACME-\d{4}\b"])
+    lines = [
+        ("src/demo.txt", "release token: ACME-1234"),
+        ("src/demo.txt", "safe token: DEMO-1234"),
+    ]
+
+    problems = scanner.check_pii_on_lines(lines, cfg=cfg, denylist=[])
+    assert any("[PII] custom pattern detected" in item for item in problems)
+    assert all("DEMO-1234" not in item for item in problems)
+
+
+def test_main_missing_config_reports_friendly_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    errors: list[str] = []
+    monkeypatch.setattr(scanner, "eprint", lambda *args: errors.append(" ".join(str(item) for item in args)))
+    monkeypatch.setattr(scanner, "repo_root", lambda: tmp_path)
+
+    assert scanner.main(["privacy_guard.py", "pre-commit"]) == 1
+    assert any(".privacy_guard.json" in item and "not found" in item.lower() for item in errors)
+
+
+def test_main_invalid_json_config_reports_friendly_error(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    errors: list[str] = []
+    monkeypatch.setattr(scanner, "eprint", lambda *args: errors.append(" ".join(str(item) for item in args)))
+    monkeypatch.setattr(scanner, "repo_root", lambda: tmp_path)
+    (tmp_path / ".privacy_guard.json").write_text("{bad json", encoding="utf-8")
+
+    assert scanner.main(["privacy_guard.py", "pre-commit"]) == 1
+    assert any("invalid json" in item.lower() for item in errors)
 
 
 def test_gitleaks_cmd_args_respects_redact_flag() -> None:

@@ -77,11 +77,28 @@ class Config:
     binary_policy: str
     blocked_binary_exts: list[str]
     max_diff_bytes: int
+    custom_patterns: list[str]
 
 
 def load_config(root: pathlib.Path) -> Config:
     path = root / ".privacy_guard.json"
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw_text = path.read_text(encoding="utf-8")
+    except FileNotFoundError as ex:
+        raise RuntimeError(
+            ".privacy_guard.json not found in repo root. Run `git-privacy-guard init --profile public` (or private) first."
+        ) from ex
+
+    try:
+        raw = json.loads(raw_text)
+    except json.JSONDecodeError as ex:
+        raise RuntimeError(
+            f"Invalid JSON in .privacy_guard.json (line {ex.lineno}, col {ex.colno}): {ex.msg}"
+        ) from ex
+
+    if not isinstance(raw, dict):
+        raise RuntimeError("Invalid .privacy_guard.json: top-level JSON value must be an object")
+
     profile = str(raw.get("profile", "public")).lower()
     if profile not in {"public", "private"}:
         raise RuntimeError("Invalid .privacy_guard.json: profile must be one of public|private")
@@ -98,6 +115,19 @@ def load_config(root: pathlib.Path) -> Config:
     if max_diff_bytes <= 0:
         raise RuntimeError("Invalid .privacy_guard.json: max_diff_bytes must be > 0")
 
+    custom_patterns_raw = raw.get("custom_patterns", [])
+    if not isinstance(custom_patterns_raw, list):
+        raise RuntimeError("Invalid .privacy_guard.json: custom_patterns must be a JSON array of regex strings")
+    custom_patterns: list[str] = []
+    for idx, item in enumerate(custom_patterns_raw):
+        if not isinstance(item, str):
+            raise RuntimeError(f"Invalid .privacy_guard.json: custom_patterns[{idx}] must be a string regex")
+        try:
+            re.compile(item)
+        except re.error as ex:
+            raise RuntimeError(f"Invalid .privacy_guard.json: custom_patterns[{idx}] invalid regex: {ex}") from ex
+        custom_patterns.append(item)
+
     return Config(
         profile=profile,
         require_gitleaks=bool(raw.get("require_gitleaks", True)),
@@ -109,6 +139,7 @@ def load_config(root: pathlib.Path) -> Config:
         binary_policy=binary_policy,
         blocked_binary_exts=list(raw.get("blocked_binary_exts", [])),
         max_diff_bytes=max_diff_bytes,
+        custom_patterns=custom_patterns,
     )
 
 
@@ -257,6 +288,7 @@ def extract_added_lines(diff_text: str) -> list[tuple[str, str]]:
 
 def check_pii_on_lines(lines: list[tuple[str, str]], *, cfg: Config, denylist: list[str]) -> list[str]:
     problems: list[str] = []
+    custom_patterns = [re.compile(p) for p in cfg.custom_patterns]
     for path, line in lines:
         if _is_allowed_line(line, cfg):
             continue
@@ -269,6 +301,11 @@ def check_pii_on_lines(lines: list[tuple[str, str]], *, cfg: Config, denylist: l
                 break
         if denylist_hit:
             continue
+
+        for custom_re in custom_patterns:
+            if custom_re.search(line):
+                problems.append(f"{path}: [PII] custom pattern detected (redacted): {_redact_line(line)}")
+                break
 
         # Heuristics
         m = EMAIL_RE.search(line)
@@ -360,10 +397,10 @@ def main(argv: list[str]) -> int:
 
     stage = argv[1]
     root = repo_root()
-    cfg = load_config(root)
-    denylist = read_denylist(root)
 
     try:
+        cfg = load_config(root)
+        denylist = read_denylist(root)
         if stage == "pre-commit":
             require_gitleaks(cfg)
 

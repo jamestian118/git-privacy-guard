@@ -143,6 +143,23 @@ export PRIVACY_GUARD_DENYLIST=/absolute/path/to/denylist.txt
 - `warn`：命中 PII 规则时仅告警
 - `allow`：跳过 PII 启发式规则（但 denylist 与 secrets 仍会阻止）
 
+可选字段 `custom_patterns`：
+
+- 类型：JSON 字符串数组（每个元素是一个 regex）
+- 用途：补充你自己的 PII 规则（例如员工号、内部 ticket 编号、客户前缀）
+- 命中后会按 `[PII] custom pattern detected` 处理
+
+示例：
+
+```json
+{
+  "custom_patterns": [
+    "\\bACME-\\d{4}\\b",
+    "corp-internal-[a-z0-9]{8}"
+  ]
+}
+```
+
 说明：
 
 - 当某一行命中本地 denylist 时，工具只报告 `[DENYLIST]`，不会再重复追加同一行的 `[PII]` 告警。
@@ -207,6 +224,11 @@ brew install gitleaks
 - 或把文件放到私有仓库
 
 （建议：公开仓库尽量只放可审查的文本内容。）
+
+4) 提示配置文件错误（找不到或 JSON 格式错误）
+
+- 若报 `.privacy_guard.json not found`：在仓库根目录重新执行 `git-privacy-guard init --profile public`（或 `private`）。
+- 若报 `Invalid JSON in .privacy_guard.json`：按报错行列修复 JSON 语法（常见是缺逗号或引号）。
 
 ---
 
@@ -331,6 +353,23 @@ export PRIVACY_GUARD_DENYLIST=/absolute/path/to/denylist.txt
 - `warn`: warn only on PII heuristic hits
 - `allow`: skip PII heuristic blocking/warnings (denylist + secrets still block)
 
+Optional field `custom_patterns`:
+
+- Type: JSON array of regex strings
+- Purpose: add your own PII detectors (for example internal ticket IDs or customer prefixes)
+- Matches are reported as `[PII] custom pattern detected`
+
+Example:
+
+```json
+{
+  "custom_patterns": [
+    "\\bACME-\\d{4}\\b",
+    "corp-internal-[a-z0-9]{8}"
+  ]
+}
+```
+
 Notes:
 
 - If a line matches local denylist, the scanner emits `[DENYLIST]` once and skips duplicate `[PII]` findings for that same line.
@@ -356,3 +395,8 @@ Notes:
 - `./scripts/secrets-check` runs `gitleaks git` across repository history.
 
 Then make a test commit on a throwaway branch and confirm commit/push is blocked or warned as configured.
+
+Troubleshooting config errors:
+
+- `.privacy_guard.json not found`: run `git-privacy-guard init --profile public` (or `private`) at repo root.
+- `Invalid JSON in .privacy_guard.json`: fix JSON syntax at the reported line/column.

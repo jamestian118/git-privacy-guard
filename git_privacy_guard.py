@@ -184,6 +184,8 @@ def _template_config(profile: str) -> dict[str, Any]:
             ".pptx",
             ".zip",
         ],
+        # Optional extra PII signals; each item is a regex string.
+        "custom_patterns": [],
         # To avoid accidentally dumping private info in CI logs, privacy_guard.py will redact matches.
         "max_diff_bytes": 2_000_000,
     }
