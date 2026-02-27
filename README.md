@@ -73,6 +73,10 @@ GPG_ROOT="${GPG_ROOT:-$HOME/Documents/Code/git-privacy-guard}"
 python3 "$GPG_ROOT/git_privacy_guard.py" init --profile public --ci
 ```
 
+常用初始化参数：
+- `--force`：覆盖已存在的 privacy-guard 文件（谨慎使用）。
+- `--no-gitignore`：不改动 `.gitignore`（适合你想手动管理 ignore 规则时）。
+
 初始化会做这些事：
 
 - 写入/更新（会被提交进仓库）：
@@ -107,6 +111,10 @@ git-privacy-guard uninstall --remove-ci
 ```
 
 当 `.github/workflows/gitleaks.yml` 内容已被手改时，默认不会删除；可加 `--force` 强制删除。
+
+卸载相关参数：
+- `--force`：即使 CI workflow 内容被手动改过也强制移除。
+- `--no-gitignore`：卸载时不回写 `.gitignore`（保留现有 ignore 配置）。
 
 ### 配置本地 denylist（最关键）
 
@@ -294,6 +302,10 @@ GPG_ROOT="${GPG_ROOT:-$HOME/Documents/Code/git-privacy-guard}"
 python3 "$GPG_ROOT/git_privacy_guard.py" init --profile public --ci
 ```
 
+Common init flags:
+- `--force`: overwrite existing privacy-guard files.
+- `--no-gitignore`: do not modify `.gitignore` during initialization.
+
 This will:
 
 - Add committed files:
@@ -326,6 +338,10 @@ git-privacy-guard uninstall --remove-ci
 ```
 
 If `.github/workflows/gitleaks.yml` was modified manually, uninstall skips it by default; use `--force` to remove anyway.
+
+Uninstall-related flags:
+- `--force`: force-remove CI workflow even when content differs.
+- `--no-gitignore`: keep `.gitignore` unchanged during uninstall.
 
 ### Configure Your Local Denylist (Most Important)
 

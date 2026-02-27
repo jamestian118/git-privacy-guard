@@ -199,3 +199,8 @@
 ### Notes
 - `.DS_Store/.coverage` 为本地未跟踪噪音文件，未纳入提交。
 - 本 lane 由主线程在 agent thread limit 约束下补齐执行。
+
+## 2026-02-27 Phase 8 GPG（8.3/8.7）
+- README 补齐 `uninstall` 相关参数说明（`--force`、`--no-gitignore`）。
+- 新增 `CHANGELOG.md`。
+- 验证：strict/verify/secrets 全绿（见 `/tmp/phase8-git-privacy-guard.log`）。
