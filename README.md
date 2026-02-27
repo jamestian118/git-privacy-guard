@@ -100,6 +100,21 @@ git config privacy.guard.denylist /absolute/path/to/denylist.txt
 export PRIVACY_GUARD_DENYLIST=/absolute/path/to/denylist.txt
 ```
 
+### 策略字段与 hook timeout
+
+`.privacy_guard.json` 的 `pii_policy` 只允许以下值：
+
+- `block`：命中 PII 规则时阻止 commit/push
+- `warn`：命中 PII 规则时仅告警
+- `allow`：跳过 PII 启发式规则（但 denylist 与 secrets 仍会阻止）
+
+说明：
+
+- 当某一行命中本地 denylist 时，工具只报告 `[DENYLIST]`，不会再重复追加同一行的 `[PII]` 告警。
+- gitleaks 子进程有 timeout 保护：
+  - `pre-commit`：60s
+  - `pre-push`：120s（每个 ref 更新范围）
+
 ### 允许某一行（少用）
 
 如果某一行是“假数据/示例”，你确认可以公开，可以在该行加入：
@@ -117,7 +132,14 @@ export PRIVACY_GUARD_DENYLIST=/absolute/path/to/denylist.txt
 python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" doctor
 ```
 
-然后做一次“故意包含敏感信息”的测试（例如在临时分支里），看 commit 是否被阻止。
+运行本地 gate：
+
+```bash
+./scripts/verify
+./scripts/secrets-check
+```
+
+然后做一次“故意包含敏感信息”的测试（例如在临时分支里），看 commit/push 是否按策略被阻止或告警。
 
 ### 常见问题
 
@@ -226,6 +248,21 @@ Or via env var:
 export PRIVACY_GUARD_DENYLIST=/absolute/path/to/denylist.txt
 ```
 
+### Policy Values And Hook Timeouts
+
+`pii_policy` in `.privacy_guard.json` only accepts:
+
+- `block`: block commit/push on PII heuristic hits
+- `warn`: warn only on PII heuristic hits
+- `allow`: skip PII heuristic blocking/warnings (denylist + secrets still block)
+
+Notes:
+
+- If a line matches local denylist, the scanner emits `[DENYLIST]` once and skips duplicate `[PII]` findings for that same line.
+- gitleaks subprocess timeouts are enforced:
+  - `pre-commit`: 60s
+  - `pre-push`: 120s (per pushed ref range)
+
 ### Allow A Line (Use Sparingly)
 
 Add `privacy:allow` or `gitleaks:allow` on a safe example line to skip PII scanning for that line.
@@ -234,6 +271,8 @@ Add `privacy:allow` or `gitleaks:allow` on a safe example line to skip PII scann
 
 ```bash
 python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" doctor
+./scripts/verify
+./scripts/secrets-check
 ```
 
-Then make a test commit on a throwaway branch and confirm it blocks as expected.
+Then make a test commit on a throwaway branch and confirm commit/push is blocked or warned as configured.

@@ -233,15 +233,27 @@ def eprint(*args: object) -> None:
     print(*args, file=sys.stderr)
 
 
-def run(cmd: list[str], *, check: bool = True, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd,
-        check=check,
-        input=input_text,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+def run(
+    cmd: list[str],
+    *,
+    check: bool = True,
+    input_text: str | None = None,
+    timeout_seconds: int | None = None,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            cmd,
+            check=check,
+            input=input_text,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as ex:
+        if timeout_seconds is None:
+            raise
+        raise RuntimeError(f"Command timed out after {timeout_seconds}s: {' '.join(cmd)}") from ex
 
 
 def git(args: list[str], *, check: bool = True, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -270,11 +282,14 @@ class Config:
 def load_config(root: pathlib.Path) -> Config:
     path = root / ".privacy_guard.json"
     raw = json.loads(path.read_text(encoding="utf-8"))
+    pii_policy = str(raw.get("pii_policy", "block")).lower()
+    if pii_policy not in {"block", "warn", "allow"}:
+        raise RuntimeError("Invalid .privacy_guard.json: pii_policy must be one of block|warn|allow")
     return Config(
         profile=raw.get("profile", "public"),
         require_gitleaks=bool(raw.get("require_gitleaks", True)),
         gitleaks_redact=bool(raw.get("gitleaks_redact", True)),
-        pii_policy=str(raw.get("pii_policy", "block")),
+        pii_policy=pii_policy,
         pii_allow_comment_tags=list(raw.get("pii_allow_comment_tags", ["privacy:allow", "gitleaks:allow"])),
         allow_email_domains=list(raw.get("allow_email_domains", ["example.com", "example.org", "example.net"])),
         blocked_path_globs=list(raw.get("blocked_path_globs", [])),
@@ -433,10 +448,14 @@ def check_pii_on_lines(lines: list[tuple[str, str]], *, cfg: Config, denylist: l
         if _is_allowed_line(line, cfg):
             continue
         # Exact denylist (local-only values)
+        denylist_hit = False
         for needle in denylist:
             if needle and needle in line:
                 problems.append(f"{path}: [DENYLIST] matched local denylist (redacted): {_redact_line(line)}")
+                denylist_hit = True
                 break
+        if denylist_hit:
+            continue
 
         # Heuristics
         m = EMAIL_RE.search(line)
@@ -472,7 +491,7 @@ def run_gitleaks_pre_commit(cfg: Config) -> None:
         return
     # Prefer the staged scanner. Newer gitleaks versions deprecate protect/detect but keep them.
     cmd = gitleaks_cmd_args(cfg) + ["protect", "-v", "--staged"]
-    p = run(cmd, check=False)
+    p = run(cmd, check=False, timeout_seconds=60)
     if p.returncode == 0:
         return
     if p.returncode == 127:
@@ -485,7 +504,7 @@ def run_gitleaks_pre_push(cfg: Config, root: pathlib.Path, log_opts: str) -> Non
     if not cfg.require_gitleaks:
         return
     cmd = gitleaks_cmd_args(cfg) + ["git", "-v", "--log-opts", log_opts, str(root)]
-    p = run(cmd, check=False)
+    p = run(cmd, check=False, timeout_seconds=120)
     if p.returncode == 0:
         return
     if p.returncode == 127:
@@ -581,7 +600,7 @@ def main(argv: list[str]) -> int:
                     eprint("privacy-guard warning: potential PII patterns detected in staged diff:")
                     for p in pii_hits[:50]:
                         eprint("  -", p)
-                elif pii_hits:
+                elif pii_hits and cfg.pii_policy == "block":
                     msg = "privacy-guard blocked this commit due to potential private data:\n- " + "\n- ".join(pii_hits[:50])
                     msg += "\n\nFix: replace with placeholders (e.g., $HOME, user@example.com) or add `privacy:allow` on safe example lines."
                     raise RuntimeError(msg)
@@ -661,7 +680,7 @@ def main(argv: list[str]) -> int:
                         eprint("privacy-guard warning: potential PII patterns detected in commits being pushed:")
                         for p in pii_hits[:80]:
                             eprint("  -", p)
-                    elif pii_hits:
+                    elif pii_hits and cfg.pii_policy == "block":
                         msg = (
                             "privacy-guard blocked this push due to potential private data in commits being pushed:\n- "
                             + "\n- ".join(pii_hits[:80])
