@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+python3 git_privacy_guard.py --help && echo '[verify] OK'
