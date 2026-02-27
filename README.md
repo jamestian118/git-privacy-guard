@@ -39,6 +39,12 @@
 brew install gitleaks
 ```
 
+可选：把工具安装为 CLI（需要仓库里新增的 `pyproject.toml`）：
+
+```bash
+python3 -m pip install -e "$HOME/Documents/Code/git-privacy-guard"
+```
+
 ### 使用方法（初始化某个仓库）
 
 进入你的目标仓库（或任意子目录）：
@@ -50,13 +56,19 @@ cd /path/to/your-repo
 运行初始化（公开仓库建议 `--profile public`）：
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile public --ci
+git-privacy-guard init --profile public --ci
 ```
 
 私有仓库（更宽松：PII 启发式默认只警告不阻止，但仍会阻止 secrets 和本地 denylist 命中）：
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile private --ci
+git-privacy-guard init --profile private --ci
+```
+
+如果你不想安装 CLI，也可以直接调用脚本：
+
+```bash
+python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile public --ci
 ```
 
 初始化会做这些事：
@@ -70,6 +82,29 @@ python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --pro
   - `.privacy_guard.denylist.local.txt`（本地 denylist，**不会进 Git**）
   - `.env` / `.env.*` 等常见本地配置
 - 设置 repo-local 配置：`git config core.hooksPath .githooks`
+
+### 卸载（撤销初始化）
+
+在目标仓库里运行：
+
+```bash
+git-privacy-guard uninstall
+```
+
+默认行为：
+
+- 删除 `.privacy_guard.json`、`.privacy_guard.denylist.example.txt`、`.githooks/privacy_guard.py`、`.githooks/pre-commit`、`.githooks/pre-push`
+- 如果 `.githooks/` 已空则删除目录；若目录内有其他文件则保留并提示
+- 删除 `.gitignore` 里由本工具插入的标记区块
+- 当 `core.hooksPath` 当前值为 `.githooks` 时自动 unset
+
+如果你也想移除本工具生成的 CI workflow：
+
+```bash
+git-privacy-guard uninstall --remove-ci
+```
+
+当 `.github/workflows/gitleaks.yml` 内容已被手改时，默认不会删除；可加 `--force` 强制删除。
 
 ### 配置本地 denylist（最关键）
 
@@ -129,7 +164,7 @@ export PRIVACY_GUARD_DENYLIST=/absolute/path/to/denylist.txt
 检查状态：
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" doctor
+git-privacy-guard doctor
 ```
 
 运行本地 gate：
@@ -202,18 +237,30 @@ Install `gitleaks` on macOS:
 brew install gitleaks
 ```
 
+Optional: install this repository as a CLI (enabled by `pyproject.toml`):
+
+```bash
+python3 -m pip install -e "$HOME/Documents/Code/git-privacy-guard"
+```
+
 ### Initialize A Repo
 
 From inside your target repo:
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile public --ci
+git-privacy-guard init --profile public --ci
 ```
 
 For a private repo (more permissive: PII heuristics warn by default, but secrets + local denylist still block):
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile private --ci
+git-privacy-guard init --profile private --ci
+```
+
+If you prefer not to install the CLI, you can invoke the script directly:
+
+```bash
+python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" init --profile public --ci
 ```
 
 This will:
@@ -225,6 +272,29 @@ This will:
   - optionally `.github/workflows/gitleaks.yml`
 - Append a marked block to `.gitignore` (including `.privacy_guard.denylist.local.txt`)
 - Set repo-local `core.hooksPath=.githooks`
+
+### Uninstall (Revert Bootstrap)
+
+From the target repo:
+
+```bash
+git-privacy-guard uninstall
+```
+
+Default behavior:
+
+- Removes `.privacy_guard.json`, `.privacy_guard.denylist.example.txt`, `.githooks/privacy_guard.py`, `.githooks/pre-commit`, `.githooks/pre-push`
+- Removes `.githooks/` when it is empty; keeps it when extra files exist
+- Removes the generated privacy-guard block in `.gitignore`
+- Unsets `core.hooksPath` when its current value is `.githooks`
+
+To also remove generated CI workflow:
+
+```bash
+git-privacy-guard uninstall --remove-ci
+```
+
+If `.github/workflows/gitleaks.yml` was modified manually, uninstall skips it by default; use `--force` to remove anyway.
 
 ### Configure Your Local Denylist (Most Important)
 
@@ -270,7 +340,7 @@ Add `privacy:allow` or `gitleaks:allow` on a safe example line to skip PII scann
 ### Verify
 
 ```bash
-python3 "$HOME/Documents/Code/git-privacy-guard/git_privacy_guard.py" doctor
+git-privacy-guard doctor
 ./scripts/verify
 ./scripts/secrets-check
 ```

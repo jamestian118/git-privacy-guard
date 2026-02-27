@@ -102,6 +102,38 @@ def _append_gitignore_block(repo_root: pathlib.Path, *, force: bool = False) -> 
     _write_text(gitignore, new, force=True)
 
 
+def _remove_gitignore_block(repo_root: pathlib.Path) -> bool:
+    gitignore = repo_root / ".gitignore"
+    start = "# --- privacy-guard (generated) ---"
+    end = "# --- /privacy-guard ---"
+
+    if not gitignore.exists():
+        return False
+
+    old = gitignore.read_text(encoding="utf-8", errors="replace")
+    if start not in old or end not in old:
+        return False
+
+    before, rest = old.split(start, 1)
+    _, after = rest.split(end, 1)
+
+    left = before.rstrip("\n")
+    right = after.lstrip("\n")
+
+    if left and right:
+        new = left + "\n" + right
+    elif left:
+        new = left + "\n"
+    else:
+        new = right
+
+    if new and not new.endswith("\n"):
+        new += "\n"
+
+    _write_text(gitignore, new, force=True)
+    return True
+
+
 def _json_dumps(obj: Any) -> str:
     return json.dumps(obj, indent=2, sort_keys=True) + "\n"
 
@@ -773,6 +805,81 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_uninstall(args: argparse.Namespace) -> int:
+    repo = pathlib.Path(args.repo).expanduser().resolve()
+    try:
+        root = _repo_root(repo)
+    except subprocess.CalledProcessError:
+        _eprint("Not a git repo (or not inside one).")
+        return 1
+
+    config_path = root / ".privacy_guard.json"
+    deny_example = root / ".privacy_guard.denylist.example.txt"
+    hooks_dir = root / ".githooks"
+    hook_files = [
+        hooks_dir / "privacy_guard.py",
+        hooks_dir / "pre-commit",
+        hooks_dir / "pre-push",
+    ]
+
+    removed: list[str] = []
+    skipped: list[str] = []
+
+    for path in [config_path, deny_example, *hook_files]:
+        if path.exists() and path.is_file():
+            path.unlink()
+            removed.append(str(path.relative_to(root)))
+
+    if hooks_dir.exists():
+        try:
+            hooks_dir.rmdir()
+            removed.append(".githooks/")
+        except OSError:
+            skipped.append(".githooks/ (not empty, left as-is)")
+
+    if args.remove_ci:
+        workflow_path = root / ".github" / "workflows" / "gitleaks.yml"
+        if workflow_path.exists():
+            generated_workflow = _template_github_actions_workflow()
+            current = workflow_path.read_text(encoding="utf-8", errors="replace")
+            if args.force or current == generated_workflow:
+                workflow_path.unlink()
+                removed.append(str(workflow_path.relative_to(root)))
+                for parent in [workflow_path.parent, workflow_path.parent.parent]:
+                    try:
+                        parent.rmdir()
+                    except OSError:
+                        pass
+            else:
+                skipped.append(".github/workflows/gitleaks.yml (content differs; use --force to remove)")
+
+    if args.gitignore:
+        if _remove_gitignore_block(root):
+            removed.append(".gitignore [privacy-guard block]")
+        else:
+            skipped.append(".gitignore [privacy-guard block not found]")
+
+    hooks_path_proc = _git(root, ["config", "--get", "core.hooksPath"], check=False)
+    hooks_path = hooks_path_proc.stdout.strip() if hooks_path_proc.returncode == 0 else ""
+    if hooks_path == ".githooks":
+        _git(root, ["config", "--unset", "core.hooksPath"], check=False)
+        removed.append("git config core.hooksPath")
+    elif hooks_path:
+        skipped.append(f"git config core.hooksPath={hooks_path} (left unchanged)")
+
+    print("Uninstalled privacy-guard from repo:")
+    print(f"  {root}")
+    if removed:
+        print("Removed:")
+        for item in removed:
+            print(f"  - {item}")
+    if skipped:
+        print("Skipped:")
+        for item in skipped:
+            print(f"  - {item}")
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     repo = pathlib.Path(args.repo).expanduser().resolve()
     try:
@@ -793,7 +900,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="git_privacy_guard.py", description="Bootstrap privacy guard hooks for a git repo.")
+    p = argparse.ArgumentParser(prog="git-privacy-guard", description="Bootstrap privacy guard hooks for a git repo.")
     p.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
 
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -811,6 +918,19 @@ def build_parser() -> argparse.ArgumentParser:
     s_doc.add_argument("repo", nargs="?", default=".", help="Path inside target git repo (default: .)")
     s_doc.set_defaults(func=cmd_doctor)
 
+    s_uninstall = sub.add_parser("uninstall", help="Remove privacy-guard files from a repo")
+    s_uninstall.add_argument("repo", nargs="?", default=".", help="Path inside target git repo (default: .)")
+    s_uninstall.add_argument("--remove-ci", action="store_true", help="Remove generated .github/workflows/gitleaks.yml")
+    s_uninstall.add_argument("--force", action="store_true", help="Force remove CI workflow even when content differs")
+    s_uninstall.add_argument(
+        "--gitignore",
+        action="store_true",
+        default=True,
+        help="Remove the privacy-guard block from .gitignore (default: true)",
+    )
+    s_uninstall.add_argument("--no-gitignore", dest="gitignore", action="store_false", help="Do not modify .gitignore")
+    s_uninstall.set_defaults(func=cmd_uninstall)
+
     return p
 
 
@@ -820,5 +940,9 @@ def main(argv: list[str]) -> int:
     return int(args.func(args))
 
 
+def cli() -> int:
+    return main(sys.argv[1:])
+
+
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(cli())

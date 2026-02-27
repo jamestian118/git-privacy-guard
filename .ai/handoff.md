@@ -1,5 +1,38 @@
 # .ai/handoff.md
 
+## 2026-02-27 P2-11~13 Packaging + Uninstall
+
+### Goal / DoD
+- Goal: 完成 Phase 2 指定项：`pyproject.toml`、`LICENSE(MIT)`、`uninstall` 子命令。
+- DoD:
+  - strict policy stack pass
+  - `./scripts/verify` pass
+  - `./scripts/secrets-check` pass
+
+### Repo State
+- Project: `/Users/Zhuanz/Documents/Code/git-privacy-guard`
+- Branch: `ai/20260227-phase0-upgrade`
+
+### Changes
+- Added: `pyproject.toml`
+- Added: `LICENSE`
+- Modified: `git_privacy_guard.py` (`uninstall` 子命令、`.gitignore` block 移除 helper、console entrypoint)
+- Modified: `README.md`（中英 usage 同步，补充 CLI 安装与 uninstall）
+
+### Verification Commands
+- `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+- `./scripts/verify`
+- `./scripts/secrets-check`
+
+### Key Outputs
+- strict: `strict_result=pass`
+- verify: `[verify] OK`
+- secrets-check: `no leaks found` + `[secrets-check] OK`
+
+### Next Steps
+1. 可选：在干净测试仓库中跑 `git-privacy-guard init`/`uninstall` 端到端 smoke。
+2. 如需发布到 PyPI，再补充 `project.urls`/release workflow 与版本策略。
+
 ## 2026-02-26 P2-2 Harness Skeleton 接入
 
 ### Goal / DoD
