@@ -28,4 +28,7 @@ dependencies = []
 git-privacy-guard = "git_privacy_guard:cli"
 
 [tool.setuptools]
-py-modules = ["git_privacy_guard"]
+py-modules = ["git_privacy_guard", "privacy_guard_scanner"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

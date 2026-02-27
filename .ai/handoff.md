@@ -1,5 +1,48 @@
 # .ai/handoff.md
 
+## 2026-02-27 Phase 4.4-4.6 GPG lane（tests + scanner 抽离）
+
+### Goal / DoD
+- Goal: 完成测试框架、scanner 模块抽离、覆盖率门禁（`>=60%`）。
+- DoD:
+  - strict policy stack pass
+  - `./scripts/verify` pass（含 pytest + coverage gate）
+  - `./scripts/secrets-check` pass
+
+### Repo State
+- Project: `/Users/Zhuanz/Documents/Code/git-privacy-guard`
+- Branch: `ai/20260227-phase0-upgrade`
+
+### Changes
+- Added: `privacy_guard_scanner.py`（从嵌入式模板抽离出的独立 scanner）
+- Added: `tests/test_privacy_guard_scanner.py`（19 个 pytest 用例）
+- Added: `docs/verify.usage.zh-en.md`（`scripts/verify` 双语使用文档）
+- Modified: `git_privacy_guard.py`（`_template_repo_scanner_py` 改为读取独立模块）
+- Modified: `pyproject.toml`（新增 `privacy_guard_scanner` module + pytest testpaths）
+- Modified: `scripts/verify`（接入 pytest-cov，coverage fail-under=60）
+- Modified: `README.md`（中英 Verify 章节补充 coverage/secrets-check 说明）
+- Modified: `privacy_guard_scanner.py`（新增 config 校验：`profile`/`binary_policy`/`max_diff_bytes`）
+
+### Verification Commands
+- `/Users/Zhuanz/Documents/Code/universal-harness-kit/scripts/agent-policy-stack --tool codex --cwd "$PWD" --strict --strict-profile harness`
+- `./scripts/verify`
+- `./scripts/secrets-check`
+
+### Key Outputs
+- strict: `strict_result=pass`
+- verify:
+  - `19 passed`
+  - `Required test coverage of 60% reached. Total coverage: 76.54%`
+  - `[verify] OK`
+- secrets-check:
+  - `4 commits scanned`
+  - `no leaks found`
+  - `[secrets-check] OK`
+
+### Next Steps
+1. 可选：在临时 git 仓库端到端跑 `git-privacy-guard init`，确认生成 `.githooks/privacy_guard.py` 与 `privacy_guard_scanner.py` 一致。
+2. 若要继续提高质量门槛，可逐步把 coverage gate 从 `60` 提升到 `80`。
+
 ## 2026-02-27 P2-11~13 Packaging + Uninstall
 
 ### Goal / DoD

@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python3 git_privacy_guard.py --help && echo '[verify] OK'
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+python3 git_privacy_guard.py --help >/dev/null
+python3 -m pytest --cov=privacy_guard_scanner --cov-report=term-missing --cov-fail-under=60 -q
+echo '[verify] OK'

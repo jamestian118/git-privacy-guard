@@ -174,6 +174,11 @@ git-privacy-guard doctor
 ./scripts/secrets-check
 ```
 
+说明：
+
+- `./scripts/verify` 会执行 `python3 -m pytest`，并强制 `privacy_guard_scanner.py` coverage `>=60%`。
+- `./scripts/secrets-check` 会对当前仓库历史执行 `gitleaks git` 检查。
+
 然后做一次“故意包含敏感信息”的测试（例如在临时分支里），看 commit/push 是否按策略被阻止或告警。
 
 ### 常见问题
@@ -344,5 +349,10 @@ git-privacy-guard doctor
 ./scripts/verify
 ./scripts/secrets-check
 ```
+
+Notes:
+
+- `./scripts/verify` runs `python3 -m pytest` and enforces `privacy_guard_scanner.py` coverage `>=60%`.
+- `./scripts/secrets-check` runs `gitleaks git` across repository history.
 
 Then make a test commit on a throwaway branch and confirm commit/push is blocked or warned as configured.
